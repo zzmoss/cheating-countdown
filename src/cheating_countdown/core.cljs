@@ -4,10 +4,18 @@
 
 (enable-console-print!)
 
-(def app-state (atom {:text "Hello world!"}))
+(def app-state (atom {:count 1}))
 
-(om/root
-  (fn [app owner]
-    (dom/h1 nil (:text app)))
-  app-state
+(defn count-view [app owner]
+  (reify
+    om/IWillMount
+    (will_mount[_]
+      (js/setInterval
+        (fn [] (om/transact! app :count inc))
+        1000))
+    om/IRender
+    (render[_]
+      (dom/div nil (:count app)))))
+
+(om/root count-view app-state
   {:target (. js/document (getElementById "app"))})
