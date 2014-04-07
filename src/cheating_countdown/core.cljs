@@ -9,43 +9,41 @@
 (def seconds-in-an-hour (* 60 seconds-in-a-minute))
 (def seconds-in-a-day (* 24 seconds-in-an-hour))
 
-(def total-time-to-elapse 108440)
-(def days (quot total-time-to-elapse seconds-in-a-day))
-(def hours (quot (rem total-time-to-elapse seconds-in-a-day) seconds-in-an-hour))
-(def minutes (quot (rem total-time-to-elapse seconds-in-an-hour) seconds-in-a-minute))
-(def seconds (rem total-time-to-elapse seconds-in-a-minute))
+(defn date-gen 
+  ([] (js/Date.))
+  ([date] (js/Date. date)))
 
-(println days hours minutes seconds)
-(def app-state (atom  {:days days 
-                       :hours hours 
-                       :minutes minutes 
-                       :seconds seconds}))
+(def deadline (date-gen "Mon Apr 27 2014 16:05:17 GMT-0400 (EDT)"))
+
+(defn compare-dates [date-end date-start]
+  (- (.getTime date-end) (.getTime date-start)))
+
+(def units [(* 60 60 24) (* 60 60) 60 1])
+
+(defn date-vec
+  [millis]
+  (loop [units units seconds (/ millis 1000) out []]
+    (if (empty? units)
+      out
+      (let [unit (first units)
+            unit-val (quot seconds unit)
+            seconds (rem seconds unit)]
+        (recur (rest units) seconds (conj out unit-val))))))
+
+(def app-state (atom {:remaining nil}))
 
 (defn display [app]
   (dom/div nil
-           (dom/ul nil 
-                   (dom/li nil (:days app))
-                   (dom/li nil (:hours app))
-                   (dom/li nil (:minutes app))
-                   (dom/li nil (:seconds app)))))
+    (apply dom/ul nil
+      (map dom/li (repeat nil) (date-vec (:remaining app))))))
 
 (defn count-view [app owner]
   (reify
-    om/IWillMount
-    (will_mount[_]
+    om/IDidMount
+    (did-mount [_]
       (js/setInterval
-        (fn [] (om/transact! app :seconds dec))
-        ms-in-a-second)
-      (js/setInterval
-        (fn [] (om/transact! app :minutes dec))
-        (* ms-in-a-second seconds-in-a-minute))
-      (js/setInterval
-        (fn [] (om/transact! app :hours dec))
-        (* ms-in-a-second seconds-in-an-hour))
-      (js/setInterval
-        (fn [] (om/transact! app :days dec))
-        (* ms-in-a-second seconds-in-a-day)))
-      
+        #(om/update! app :remaining(compare-dates deadline (date-gen))) 1000)) 
+
     om/IRender
     (render[_]
       (display app))))
