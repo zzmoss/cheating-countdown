@@ -12,3 +12,5 @@ pom.xml.asc
 cheating_countdown.js
 /out/
 *.sw*
+/.repl/
+/.nrepl*
