@@ -8,16 +8,21 @@
 
 (enable-console-print!)
 
+(def app-state (atom {:remaining nil}))
+
+
+;;Date related helpers
 (defn date-gen 
   ([] (js/Date.))
   ([date] (js/Date. date)))
 
-(def deadline (.getParameterValue (Uri. (.-location js/window)) "date"))
 
-(defn compare-dates [date-end date-start]
+(defn compare-dates 
+  [date-end date-start]
   (- (.getTime date-end) (.getTime date-start)))
 
-(defn remaining [deadline]
+(defn remaining 
+  [deadline]
   (compare-dates (date-gen deadline) (date-gen)))
 
 (def units [(* 60 60 24) (* 60 60) 60 1])
@@ -32,18 +37,25 @@
             seconds (rem seconds unit)]
         (recur (rest units) seconds (conj out unit-val))))))
 
+
+;;Read deadline from URL
+(def deadline (.getParameterValue (Uri. (.-location js/window)) "date"))
+
+;;Helper to update deadline with new value
 (defn update-deadline
   [owner new-deadline]
   (om/set-state! owner :deadline new-deadline))
 
-(def app-state (atom {:remaining nil}))
-
-(defn time-display [app]
-  (dom/div #js {:className "app"} 
+;;Display code for timer component
+(defn time-display 
+  [app]
+  (dom/div #js {:className "component"} 
     (apply dom/ul #js {:className "timer"}
       (map #(dom/li #js {:className "time-box"} %) (date-vec (:remaining app))))))
 
-(defn count-view [app owner]
+;;Timer component
+(defn count-view 
+  [app owner]
   (reify
     om/IWillMount
     (will-mount [_]
@@ -71,9 +83,10 @@
     (render-state[this {:keys [deadline-chan]}]
       (time-display app))))
 
-
-(defn form-display [deadline-chan owner]
-  (dom/div #js {:className "app"}
+;;Display code for datetime chooser component
+(defn form-display 
+  [deadline-chan owner]
+  (dom/div #js {:className "component"}
            (dom/input #js {:type "text" 
                            :id "datetimepicker" 
                            :ref "datetime" })
@@ -84,8 +97,9 @@
                                          (om/get-state owner :deadline-selected)))
                             } "Countdown")))
 
-
-(defn datepicker-view [app owner]
+;;DatePicker form component
+(defn datepicker-view 
+  [app owner]
   (reify
     om/IDidMount
     (did-mount [_]
@@ -100,9 +114,10 @@
     (render-state [this {:keys [deadline-chan]}]
       (form-display deadline-chan owner))))
 
-(defn countdown-timer [app owner]
+;;Root component, composed of timer and form
+(defn countdown-timer 
+  [app owner]
   (reify
-
     om/IInitState
     (init-state [_]
       {:deadline-chan (chan)})
@@ -110,8 +125,9 @@
     om/IRenderState
     (render-state [this state]
       (dom/div nil 
-               (dom/div nil (om/build datepicker-view app {:init-state state}))
-               (dom/div nil (om/build count-view app {:init-state state}))))))
+               (dom/div nil (om/build count-view app {:init-state state}))
+               (dom/div nil (om/build datepicker-view app {:init-state state}))))))
+
 
 (om/root countdown-timer app-state
   {:target (. js/document (getElementById "app"))})
