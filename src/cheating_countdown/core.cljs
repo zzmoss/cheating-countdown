@@ -3,19 +3,18 @@
   (:require [om.core :as om :include-macros true]
             [om.dom :as dom :include-macros true]
             [cljs.core.async :refer  [put! chan <!]]
-            [goog.Uri :as uri]) 
+            [goog.Uri :as uri])
   (:import [goog Uri]))
 
 (enable-console-print!)
 
+;;Defining app state
 (def app-state (atom {:remaining nil}))
-
 
 ;;Date related helpers
 (defn date-gen 
   ([] (js/Date.))
   ([date] (js/Date. date)))
-
 
 (defn compare-dates 
   [date-end date-start]
@@ -106,9 +105,10 @@
       ( -> (om/get-node owner "datetime")
            js/jQuery
            (.datetimepicker 
-             (clj->js {:onChangeDateTime 
+             (clj->js {:step 30 
+                       :onChangeDateTime 
                         (fn [datetime input]
-                          (om/set-state! owner :deadline-selected datetime))}))))
+                          (om/set-state! owner :deadline-selected (-> input js/jQuery .val)))}))))
 
     om/IRenderState
     (render-state [this {:keys [deadline-chan]}]

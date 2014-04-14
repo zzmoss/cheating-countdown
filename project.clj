@@ -16,18 +16,18 @@
     :builds [{:id "dev"
               :source-paths ["src"]
               :compiler {
-                :output-to "cheating_countdown.js"
+                :output-to "cheating_countdown_dev.js"
                 :output-dir "out"
                 :optimizations :none
                 :source-map true}}
              {:id "release"
               :source-paths ["src"]
               :compiler {
-                :output-to "cheating_countdown.js"
-                :optimizations :advanced
+                :output-to "cheating_countdown_release.js"
+                :optimizations :advanced 
                 :pretty-print false
                 :preamble ["react/react.min.js"]
-                :externs ["react/externs/react.js" 
+                :externs ["react/externs/react.js"
                           "resources/js/jquery.min.js"
                           "resources/js/jquery.datetimepicker.js" ]}}]}
 
