@@ -9,7 +9,8 @@
 (enable-console-print!)
 
 ;;Defining app state
-(def app-state (atom {:deadline nil }))
+(def app-state (atom {:deadline nil
+                      :drunk false }))
 
 ;;Date related helpers
 (defn date-gen 
@@ -44,6 +45,33 @@
             seconds (rem seconds unit)]
         (recur (rest units) seconds (conj out unit-val))))))
 
+;;DOM related helpers
+
+(defn reset-dom-elements 
+  [app]
+  (do
+    (-> (js/jQuery "#check-drunk") (.prop "checked" (:drunk app)))
+    (-> (js/jQuery "#datetimepicker") (.val (:deadline app)))))
+
+(defn is-checked []
+  (-> (js/jQuery "#check-drunk") (.prop "checked")))
+
+;;Undo related helpers
+
+(def app-history (atom [@app-state]))
+
+(add-watch app-state :history
+  (fn [_ _ _ n]
+    (when-not (= (last @app-history) n)
+      (swap! app-history conj n))))
+
+(defn undo
+  [event]
+  (when (> (count @app-history) 1)
+    (swap! app-history pop)
+    (reset! app-state (last @app-history))
+    (reset-dom-elements (last @app-history))))
+        
 
 ;;Read deadline from URL
 (def deadline (.getParameterValue (Uri. (.-location js/window)) "date"))
@@ -82,7 +110,7 @@
       ;;Update remaining time in the app state every one second.
       (om/set-state! owner :interval
         (js/setInterval
-            #(om/set-state! owner :remaining (remaining (:deadline @app) false))
+            #(om/set-state! owner :remaining (remaining (:deadline @app) (:drunk @app)))
           1000))) 
 
     om/IWillUnmount
@@ -125,19 +153,6 @@
     (render-state [this {:keys [deadline-chan]}]
       (form-display deadline-chan owner))))
 
-(def app-history (atom [@app-state]))
-
-(add-watch app-state :history
-  (fn [_ _ _ n]
-    (when-not (= (last @app-history) n)
-      (swap! app-history conj n))))
-
-(defn undo
-  [event]
-  (when (> (count @app-history) 1)
-    (swap! app-history pop)
-    (reset! app-state (last @app-history))))
-        
 
 ;;Root component, composed of timer and form
 (defn countdown-timer 
@@ -150,13 +165,19 @@
     om/IRenderState
     (render-state [this state]
       (dom/div nil 
-               (dom/div nil (om/build count-view app {:init-state state}))
-               (dom/div nil (om/build datepicker-view app {:init-state state}))
-               (dom/div #js {:className "component spacer"} 
-                        (dom/span #js {} "Counting down to: ")
-                        (dom/span #js {:id "deadline-display"}
-                            (when (not= nil (:deadline app)) (str (date-gen (:deadline app)))))
-                        (dom/span nil (dom/button #js {:onClick undo} "Undo")))))))
+         (dom/div nil (om/build count-view app {:init-state state}))
+         (dom/div nil (om/build datepicker-view app {:init-state state}))
+         (dom/div #js {:className "component spacer"} 
+            (dom/span #js {} "Counting down to: ")
+            (dom/span #js {:id "deadline-display"}
+              (when (not= nil (:deadline app)) (str (date-gen (:deadline app)))))
+            (dom/span nil (dom/button #js {:onClick undo} "Undo"))
+            (dom/span nil 
+              (dom/input #js {:type "checkbox" 
+                              :id "check-drunk" 
+                              :onClick 
+                                (fn []
+                                  (om/update! app :drunk (is-checked))) } "Drunk")))))))
 
 (om/root countdown-timer app-state
   {:target (. js/document (getElementById "app"))})
