@@ -80,8 +80,7 @@
 (defn update-deadline
   [app new-deadline]
   (do
-    (set! (.-innerHTML(.getElementById js/document "deadline-display"))
-        (:deadline @app)) 
+    (-> (js/jQuery "#deadline-display") (.html (:deadline @app)))
     (om/update! app :deadline new-deadline)))
 
 ;;Display code for timer component
