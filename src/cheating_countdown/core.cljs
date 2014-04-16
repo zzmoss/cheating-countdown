@@ -1,4 +1,4 @@
-(ns cheating-countdown.core
+(ns cheating-countdown.core 
   (:require-macros  [cljs.core.async.macros :refer  [go]])
   (:require [om.core :as om :include-macros true]
             [om.dom :as dom :include-macros true]
@@ -9,20 +9,28 @@
 (enable-console-print!)
 
 ;;Defining app state
-(def app-state (atom {:remaining nil}))
+(def app-state (atom {:deadline nil }))
 
 ;;Date related helpers
 (defn date-gen 
   ([] (js/Date.))
   ([date] (js/Date. date)))
 
+(defn random-date
+  [deadline]
+  (let [start (date-gen)
+        end (date-gen deadline)]
+    (date-gen (+  (.getTime start) (* (Math/random) (- (.getTime end) (.getTime start)) )))))
+
 (defn compare-dates 
   [date-end date-start]
   (- (.getTime date-end) (.getTime date-start)))
 
-(defn remaining 
-  [deadline]
-  (compare-dates (date-gen deadline) (date-gen)))
+(defn remaining
+  [deadline random]
+  (if random 
+    (compare-dates (date-gen deadline) (random-date deadline))
+    (compare-dates (date-gen deadline) (date-gen))))
 
 (def units [(* 60 60 24) (* 60 60) 60 1])
 
@@ -42,15 +50,18 @@
 
 ;;Helper to update deadline with new value
 (defn update-deadline
-  [owner new-deadline]
-  (om/set-state! owner :deadline new-deadline))
+  [app new-deadline]
+  (do
+    (set! (.-innerHTML(.getElementById js/document "deadline-display"))
+        (:deadline @app)) 
+    (om/update! app :deadline new-deadline)))
 
 ;;Display code for timer component
 (defn time-display 
-  [app]
+  [app owner]
   (dom/div #js {:className "component"} 
     (apply dom/ul #js {:className "timer"}
-      (map #(dom/li #js {:className "time-box"} %) (date-vec (:remaining app))))))
+      (map #(dom/li #js {:className "time-box"} %) (date-vec (om/get-state owner :remaining))))))
 
 ;;Timer component
 (defn count-view 
@@ -59,19 +70,19 @@
     om/IWillMount
     (will-mount [_]
       ;;If URL has a deadline update state to that deadline
-      (when (not= deadline nil) (update-deadline owner deadline))
+      (when (not= deadline nil) (update-deadline app deadline))
       
       ;;Infinite go loop that reads from deadline-chan when there's a 
       ;; click event and updates deadline 
       (let [deadline-chan (om/get-state owner :deadline-chan)]
         (go (while true (let [new-deadline (<! deadline-chan) ] 
                             (when (not= nil new-deadline)
-                               (update-deadline owner new-deadline))))))
+                               (update-deadline app new-deadline))))))
       
       ;;Update remaining time in the app state every one second.
       (om/set-state! owner :interval
         (js/setInterval
-            #(om/update! app :remaining (remaining (om/get-state owner :deadline)))
+            #(om/set-state! owner :remaining (remaining (:deadline @app) false))
           1000))) 
 
     om/IWillUnmount
@@ -80,7 +91,7 @@
 
     om/IRenderState
     (render-state[this {:keys [deadline-chan]}]
-      (time-display app))))
+      (time-display app owner))))
 
 ;;Display code for datetime chooser component
 (defn form-display 
@@ -114,6 +125,20 @@
     (render-state [this {:keys [deadline-chan]}]
       (form-display deadline-chan owner))))
 
+(def app-history (atom [@app-state]))
+
+(add-watch app-state :history
+  (fn [_ _ _ n]
+    (when-not (= (last @app-history) n)
+      (swap! app-history conj n))))
+
+(defn undo
+  [event]
+  (when (> (count @app-history) 1)
+    (swap! app-history pop)
+    (reset! app-state (last @app-history))))
+        
+
 ;;Root component, composed of timer and form
 (defn countdown-timer 
   [app owner]
@@ -126,8 +151,12 @@
     (render-state [this state]
       (dom/div nil 
                (dom/div nil (om/build count-view app {:init-state state}))
-               (dom/div nil (om/build datepicker-view app {:init-state state}))))))
-
+               (dom/div nil (om/build datepicker-view app {:init-state state}))
+               (dom/div #js {:className "component spacer"} 
+                        (dom/span #js {} "Counting down to: ")
+                        (dom/span #js {:id "deadline-display"}
+                            (when (not= nil (:deadline app)) (str (date-gen (:deadline app)))))
+                        (dom/span nil (dom/button #js {:onClick undo} "Undo")))))))
 
 (om/root countdown-timer app-state
   {:target (. js/document (getElementById "app"))})

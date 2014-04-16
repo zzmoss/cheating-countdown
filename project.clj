@@ -29,6 +29,8 @@
                 :preamble ["react/react.min.js"]
                 :externs ["react/externs/react.js"
                           "resources/js/jquery.min.js"
-                          "resources/js/jquery.datetimepicker.js" ]}}]}
+                          "resources/js/jquery.datetimepicker.js" ]}
+               :closure-warnings {:externs-validation :off
+                                  :non-standard-jsdoc :off}}]}
 
   :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]})
