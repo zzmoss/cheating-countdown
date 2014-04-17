@@ -72,15 +72,14 @@
     (reset! app-state (last @app-history))
     (reset-dom-elements (last @app-history))))
         
-
 ;;Read deadline from URL
 (def deadline (.getParameterValue (Uri. (.-location js/window)) "date"))
 
 ;;Helper to update deadline with new value
 (defn update-deadline
-  [app new-deadline]
+  [app deadline new-deadline]
   (do
-    (-> (js/jQuery "#deadline-display") (.html (:deadline @app)))
+    (-> (js/jQuery "#deadline-display") (.html deadline))
     (om/update! app :deadline new-deadline)))
 
 ;;Display code for timer component
@@ -97,14 +96,14 @@
     om/IWillMount
     (will-mount [_]
       ;;If URL has a deadline update state to that deadline
-      (when (not= deadline nil) (update-deadline app deadline))
+      (when (not= deadline nil) (update-deadline app (:deadline app) deadline))
       
       ;;Infinite go loop that reads from deadline-chan when there's a 
       ;; click event and updates deadline 
       (let [deadline-chan (om/get-state owner :deadline-chan)]
         (go (while true (let [new-deadline (<! deadline-chan) ] 
                             (when (not= nil new-deadline)
-                               (update-deadline app new-deadline))))))
+                               (update-deadline app (:deadline @app) new-deadline))))))
       
       ;;Update remaining time in the app state every one second.
       (om/set-state! owner :interval
